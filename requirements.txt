@@ -1,0 +1,12 @@
+imageio[ffmpeg]
+supervision
+pycocotools
+transformers
+addict
+yapf
+timm
+matplotlib
+flow_vis
+tqdm
+tensorboard
+open3d
