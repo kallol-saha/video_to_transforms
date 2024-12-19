@@ -15,15 +15,15 @@ import gsam2.grounding_dino.groundingdino.datasets.transforms as T
 from torchvision.ops import box_convert
 from gsam2.sam2.build_sam import build_sam2
 from gsam2.sam2.sam2_image_predictor import SAM2ImagePredictor
-from gsam2.grounding_dino.groundingdino.util.inference import load_model, load_image, load_video, predict
+from gsam2.grounding_dino.groundingdino.util.inference import load_model, predict
 
 """
 Hyper parameters
 """
-SAM2_CHECKPOINT = "./checkpoints/sam2.1_hiera_large.pt"
+SAM2_CHECKPOINT = "assets/weights/sam2.1_hiera_large.pt"
 SAM2_MODEL_CONFIG = "configs/sam2.1/sam2.1_hiera_l.yaml"
-GROUNDING_DINO_CONFIG = "grounding_dino/groundingdino/config/GroundingDINO_SwinT_OGC.py"
-GROUNDING_DINO_CHECKPOINT = "gdino_checkpoints/groundingdino_swint_ogc.pth"
+GROUNDING_DINO_CONFIG = "gsam2/grounding_dino/groundingdino/config/GroundingDINO_SwinT_OGC.py"
+GROUNDING_DINO_CHECKPOINT = "assets/weights/groundingdino_swint_ogc.pth"
 BOX_THRESHOLD = 0.35
 TEXT_THRESHOLD = 0.25
 OUTPUT_DIR = Path("outputs/")
