@@ -113,6 +113,9 @@ class GSAM2:
             multimask_output=False,
         )
 
+        if len(masks.shape) == 3:
+            masks = masks[np.newaxis, :]
+
         return masks, scores, logits, confidences, labels, input_boxes
     
     def visualize(self, video_path, masks, confidences, labels, input_boxes, frame = 0):

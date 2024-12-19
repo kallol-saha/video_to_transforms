@@ -59,5 +59,5 @@ class Cotracker3:
         frames = iio.imread(video_path, plugin="FFMPEG")  # plugin="pyav"
         video = torch.tensor(frames).permute(0, 3, 1, 2)[None].float().to(self.device)  # B T C H W
         
-        vis = Visualizer(save_dir="./output", pad_value=120, linewidth=3)
+        vis = Visualizer(save_dir="./outputs", pad_value=120, linewidth=3)
         vis.visualize(video, pred_tracks, pred_visibility) #, segm_mask = mask)
