@@ -1,6 +1,6 @@
-[submodule "gsam2"]
-	path = gsam2
-	url = https://github.com/IDEA-Research/Grounded-SAM-2.git
 [submodule "cotracker3"]
 	path = cotracker3
-	url = https://github.com/facebookresearch/co-tracker.git
+	url = https://github.com/kallol-saha/cotracker3.git
+[submodule "gsam2"]
+	path = gsam2
+	url = https://github.com/kallol-saha/gsam2.git

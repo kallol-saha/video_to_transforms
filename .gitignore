@@ -1,3 +1,7 @@
 *.pth
 *.pt
 *.egg-info
+assets/videos
+assets/data
+
+__pycache__
