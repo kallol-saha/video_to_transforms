@@ -156,6 +156,7 @@ class GSAM2:
 
         label_annotator = sv.LabelAnnotator()
         annotated_frame = label_annotator.annotate(scene=annotated_frame, detections=detections, labels=labels)
+        annotated_frame = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
         cv2.imwrite(os.path.join(OUTPUT_DIR, "groundingdino_annotated_image.jpg"), annotated_frame)
 
         mask_annotator = sv.MaskAnnotator()

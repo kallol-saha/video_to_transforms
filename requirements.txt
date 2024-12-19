@@ -10,3 +10,5 @@ flow_vis
 tqdm
 tensorboard
 open3d
+pyyaml
+requests
