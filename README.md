@@ -4,7 +4,8 @@
 
 Video:
 
-![Example Video](https://github.com/kallol-saha/video_to_transforms/assets/example.gif)
+<img width="1100" src="./assets/example.gif" />
+<!-- ![Example Video](https://github.com/kallol-saha/video_to_transforms/assets/example.gif) -->
 
 Prompt:
 ```python
@@ -13,7 +14,8 @@ object_names = "rubber duck. blue box. wooden bowl"
 
 ### Example Output Data:
 
-![Example Output](https://github.com/kallol-saha/video_to_transforms/assets/Vid2Trans.jpg)
+<img width="1100" src="./assets/Vid2Trans.jpg" />
+<!-- ![Example Output](https://github.com/kallol-saha/video_to_transforms/assets/Vid2Trans.jpg) -->
 
 ## Installation
 

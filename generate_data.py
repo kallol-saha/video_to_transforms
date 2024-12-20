@@ -30,14 +30,12 @@ initial_pcd, initial_pcd_seg = data_collector.prepare_initial_pcd(masks, pcd_seq
 # Cotracker inference
 masks = masks[:, 0]
 object_tracks = []
-# for i in tqdm(range(masks.shape[0])):
-#     pred_tracks, pred_visibility = cotracker3.get_tracks(video_path, masks[i])
-#     pred_tracks = pred_tracks.cpu().detach().numpy()
-#     pred_visibility = pred_visibility.cpu().detach().numpy()
-#     object_tracks.append(pred_tracks[0])
+for i in tqdm(range(masks.shape[0])):
+    pred_tracks, pred_visibility = cotracker3.get_tracks(video_path, masks[i])
+    pred_tracks = pred_tracks.cpu().detach().numpy()
+    pred_visibility = pred_visibility.cpu().detach().numpy()
+    object_tracks.append(pred_tracks[0])
     # cotracker3.visualize(video_path, pred_tracks, pred_visibility, filename = str(i))
-for i in range(3):
-    object_tracks.append(np.load(str(i) + ".npy"))
 
 # Detect movement:
 indices, objects = data_collector.detect_movement(object_tracks)
