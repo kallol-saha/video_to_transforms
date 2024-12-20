@@ -51,7 +51,7 @@ class Cotracker3:
 
         return pred_tracks, pred_visibility
     
-    def visualize(self, video_path, pred_tracks, pred_visibility):
+    def visualize(self, video_path, pred_tracks, pred_visibility, filename = "video"):
 
         # pred_tracks => (B, frames, num_queries, 2) locations of the query points in each frame of the video
         # pred_visibility => (B, frames, num_queries) mask of whether the point is visible in that frame or not
@@ -60,4 +60,4 @@ class Cotracker3:
         video = torch.tensor(frames).permute(0, 3, 1, 2)[None].float().to(self.device)  # B T C H W
         
         vis = Visualizer(save_dir="./outputs", pad_value=120, linewidth=3)
-        vis.visualize(video, pred_tracks, pred_visibility) #, segm_mask = mask)
+        vis.visualize(video, pred_tracks, pred_visibility, filename = filename) #, segm_mask = mask)
