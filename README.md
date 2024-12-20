@@ -43,7 +43,7 @@ conda install pytorch==2.5.0 torchvision==0.20.0 torchaudio==2.5.0 pytorch-cuda=
 4. Install CoTracker3 and download checkpoints. (From https://github.com/facebookresearch/co-tracker)
 
 ```bash
-cd co-tracker
+cd cotracker3
 pip install -e .
 cd ../..
 
@@ -58,7 +58,7 @@ cd ../..
 5. Install Grounded-SAM-2 and download checkpoints. (From https://github.com/IDEA-Research/Grounded-SAM-2)
 
 ```bash
-cd Grounded-SAM-2
+cd gsam2
 pip install -e .        
 pip install --no-build-isolation -e grounding_dino      # Install grounding dino
 cd ../..

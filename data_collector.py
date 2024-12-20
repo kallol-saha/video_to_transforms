@@ -271,14 +271,14 @@ class DataCollector:
 
         return transforms
     
-    def prepare_initial_pcd(self, masks, pcd_sequence, vis_threshold = 1.):
+    def prepare_initial_pcd(self, masks, pcd, vis_threshold = 1.):
         """
         masks => (num_objects, 720, 1280)
         """
 
         num_objects = masks.shape[0]
         
-        initial_pcd = pcd_sequence[0].reshape((-1, 3))
+        initial_pcd = pcd.reshape((-1, 3))
 
         weights = np.arange(num_objects) + 1
         mask_sum = np.tensordot(weights, masks, axes = ([0], [0])) - 1      # Objects get 0 to n segmentation, everything else gets a -1
