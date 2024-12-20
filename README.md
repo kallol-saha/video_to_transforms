@@ -1,5 +1,20 @@
 # Video to Transforms
 
+### Example Video and Prompt Input:
+
+Video:
+
+![Example Video](https://github.com/kallol-saha/video_to_transforms/assets/example.gif)
+
+Prompt:
+```python
+object_names = "rubber duck. blue box. wooden bowl"
+```
+
+### Example Output Data:
+
+![Example Output](https://github.com/kallol-saha/video_to_transforms/assets/Vid2Trans.jpg)
+
 ## Installation
 
 You will need CUDA 12.1 to run this method.
@@ -56,3 +71,7 @@ bash download_gdino_ckpts.sh
 ```bash
 pip install -r requirements.txt
 ```
+
+## Usage
+
+Run the ```generate_data.py``` file
