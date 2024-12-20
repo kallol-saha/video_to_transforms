@@ -25,7 +25,7 @@ masks, scores, logits, confidences, labels, input_boxes = gsam2.get_masks(object
 gsam2.visualize(video_path, masks, confidences, labels, input_boxes, frame)
 
 # Get the initial point cloud:
-initial_pcd, initial_pcd_seg = data_collector.prepare_initial_pcd(masks, pcd_sequence)
+initial_pcd, initial_pcd_seg = data_collector.prepare_initial_pcd(masks, pcd_sequence, vis_threshold)
 
 # Cotracker inference
 masks = masks[:, 0]
