@@ -1,0 +1,6 @@
+[submodule "cotracker3"]
+	path = cotracker3
+	url = https://github.com/kallol-saha/cotracker3.git
+[submodule "gsam2"]
+	path = gsam2
+	url = https://github.com/kallol-saha/gsam2.git

@@ -1,0 +1,10 @@
+*.pth
+*.pt
+*.egg-info
+*.mp4
+assets/videos
+assets/data
+test.py
+*.npy
+
+__pycache__
