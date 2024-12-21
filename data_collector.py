@@ -105,7 +105,8 @@ class DataCollector:
 
         return change_frames, change_objects
     
-    def detect_movement(self, object_tracks):
+    # TODO: Remove this if the other works
+    def detect_movement_prev(self, object_tracks):
 
         track_diffs = np.zeros((len(object_tracks), object_tracks[0].shape[0] - 1))
         object_change_points = []
@@ -136,6 +137,49 @@ class DataCollector:
 
             if i == len(change_frames):
                 indices.append((object_tracks[0].shape[0] + prev_change) // 2)      # After the last transition
+                break
+            
+            change_start = object_stationary_masks[change_objects[i]][change_frames[i]]     # This is the start of the "peak" from the left, for the current object
+            indices.append((change_start + prev_change) // 2)       # The midpoint of the valley is considered as the index
+
+            prev_change = object_stationary_masks[change_objects[i]][change_frames[i]+1]    # Reset the previous change the end of the "peak" on the right 
+
+        # Length of change_objects will always be one less than indices, because no more objects are moved at the last index.
+        return np.array(indices), change_objects
+    
+    def detect_movement(self, object_track_diff_averages):
+
+        track_diffs = np.zeros((len(object_track_diff_averages), object_track_diff_averages[0].shape[0] - 1))
+        object_change_points = []
+        object_stationary_masks = []
+        
+        for i in range(len(object_track_diff_averages)):
+
+            # track = object_tracks[i]
+            # track_diff = np.linalg.norm(track[1:] - track[:-1], axis = -1)
+            # track_diff_avg = np.mean(track_diff, axis = -1)
+
+            track_diff_avg = object_track_diff_averages[i]
+
+            stationary_mask = np.where(track_diff_avg < DIFF_THRESH)[0]
+            stationary_mask_diff = stationary_mask[1:] - stationary_mask[:-1]
+            change_points = np.where(stationary_mask_diff > STATIONARY_THRESH)[0]
+
+            object_change_points.append(change_points)
+            object_stationary_masks.append(stationary_mask)
+
+            track_diffs[i] = track_diff_avg
+
+        change_frames, change_objects = self.get_movement_order(object_change_points)
+        change_frames = np.array(change_frames)
+
+        prev_change = 0
+        indices = []
+
+        for i in range(len(change_frames) + 1):
+
+            if i == len(change_frames):
+                indices.append((object_track_diff_averages[0].shape[0] + prev_change) // 2)      # After the last transition
                 break
             
             change_start = object_stationary_masks[change_objects[i]][change_frames[i]]     # This is the start of the "peak" from the left, for the current object
@@ -309,7 +353,7 @@ class DataCollector:
 
         return pcd, pcd_seg
     
-    def save_final_data(self, initial_pcd, initial_pcd_seg, transforms, objects, initial_rgb, mode = "train"):
+    def save_final_data(self, initial_pcd, initial_pcd_seg, transforms, objects, mode = "train"):
         
         prev_pcd = initial_pcd.copy()
         pcd_seg = initial_pcd_seg.copy()
@@ -323,8 +367,8 @@ class DataCollector:
 
             classes = np.where(obj_mask, 0, 1)
 
-            # plot_pcd(transformed_pcd, pcd_seg)
-            # plot_pcd(transformed_pcd, classes)
+            plot_pcd(transformed_pcd, pcd_seg)
+            plot_pcd(transformed_pcd, classes)
         
             # TODO: Remember to transform to robot frame (do we need this? Because taxposeD applies random transforms anyways)
         
