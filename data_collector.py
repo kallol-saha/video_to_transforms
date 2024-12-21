@@ -276,6 +276,8 @@ class DataCollector:
         masks => (num_objects, 720, 1280)
         """
 
+        # TODO: Assume points in world frame instead of camera frame for processing
+
         num_objects = masks.shape[0]
         
         initial_pcd = pcd.reshape((-1, 3))
