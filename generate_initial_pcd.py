@@ -3,6 +3,7 @@ from cotracker_wrapper import Cotracker3
 from data_collector import DataCollector, plot_pcd
 import numpy as np
 from tqdm import tqdm
+from get_real_pcd import get_current_rgbd
 
 object_names = "rubber duck. blue box. wooden bowl"
 img_path = "rgb.jpg"
@@ -15,6 +16,7 @@ vis_threshold = 1.
 gsam2 = GSAM2(device)
 data_collector = DataCollector(data_path)
 
+get_current_rgbd()
 pcd = np.load(pcd_path)
 
 # GSAM inference

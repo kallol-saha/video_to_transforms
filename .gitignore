@@ -6,5 +6,6 @@ assets/videos
 assets/data
 test.py
 *.npy
+rgb.jpg
 
 __pycache__
