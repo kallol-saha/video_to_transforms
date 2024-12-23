@@ -2,31 +2,25 @@ from gsam_wrapper import GSAM2
 from cotracker_wrapper import Cotracker3
 from data_collector import DataCollector, plot_pcd
 import torch
+import argparse
 import os
 import numpy as np
 from tqdm import tqdm
 import gc
 
-# --------------------- USER PARAMS --------------------------- #
-object_names = "blue plate. pink plate. red bowl. white cup"
-num_objects = 4
-video_folder = "assets/videos/table_bussing_four_objects"
-num_videos = 20
-start_from = 10
-frame = 0
-device = "cuda:1"
-vis_threshold = 1.
-# ------------------------------------------------------------- #
+def main(args):
 
-for v in tqdm(range(start_from, num_videos)):
-
-    video_path = video_folder + "/rgb_vid_" + str(v) + ".mp4"
-    tracks_path = video_folder + "/tracks_" + str(v)
-    pcd_vid_path = video_folder + "/pcd_vid_" + str(v) + ".npy"
+    # --------------------- USER PARAMS --------------------------- #
+    object_names = "blue plate. pink plate. red bowl. white cup"
+    num_objects = 4
+    video_folder = "assets/videos/table_bussing_four_objects"
+    frame = 0
+    device = "cuda:1"
+    # ------------------------------------------------------------- #
+    
+    video_path = video_folder + "/rgb_vid_" + str(args.video_index) + ".mp4"
+    tracks_path = video_folder + "/tracks_" + str(args.video_index)
     os.makedirs(tracks_path, exist_ok=True)
-
-    # Load point cloud data:
-    pcd_sequence = np.load(pcd_vid_path)
 
     # Instantiate modules
     gsam2 = GSAM2(device)
@@ -36,10 +30,7 @@ for v in tqdm(range(start_from, num_videos)):
     masks, scores, logits, confidences, labels, input_boxes = gsam2.get_masks(object_names, video_path, frame)
     filtered_masks, _ = gsam2.filter_masks(masks, labels, num_objects)
     # gsam2.visualize(video_path, masks, confidences, labels, input_boxes, frame)
-
-    del gsam2
-    torch.cuda.empty_cache()
-    gc.collect()
+    # TODO: Save the initial pcd and initial pcd seg here itself so that it doesn't GSAM doesn't need to be rerun again for data generation
 
     # Cotracker inference
     filtered_masks = filtered_masks[:, 0]
@@ -48,6 +39,13 @@ for v in tqdm(range(start_from, num_videos)):
         pred_tracks = pred_tracks.cpu().detach().numpy()
         np.save(tracks_path + "/" + str(i) + ".npy", pred_tracks)
 
-    del cotracker3
-    torch.cuda.empty_cache()
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--video_index", required=True, help="index of the video to process")
+
+    args = parser.parse_args()
+
+    main(args)
 
