@@ -156,7 +156,37 @@ class GSAM2:
 
         return masks, scores, logits, confidences, labels, input_boxes
     
+    def first_n_unique_elements(self, strings, n=3):
+        """
+        Get the first n unique elements from a list.
+
+        Args:
+            strings (list): List of strings.
+            n (int): Number of unique elements to extract.
+
+        Returns:
+            list: List of the first n unique elements.
+        """
+        seen = set()
+        unique_elements = []
+        unique_indices = []
+
+        for i, string in enumerate(strings):
+            if string not in seen:
+                seen.add(string)
+                unique_elements.append(string)
+                unique_indices.append(i)
+                if len(unique_elements) == n:
+                    break
+
+        return unique_elements, unique_indices
     
+    def filter_masks(self, masks, labels, num_objects):
+
+        unique_labels, indices = self.first_n_unique_elements(labels, num_objects)        # We only take the best confidence for each, assuming confidences are already in descending order
+        filtered_masks = masks[indices]
+        
+        return filtered_masks, unique_labels    
     
     def visualize(self, video_path, masks, confidences, labels, input_boxes, frame = 0):
 

@@ -13,3 +13,4 @@ open3d
 pyyaml
 requests
 pyk4a
+numpy==1.26.4

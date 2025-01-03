@@ -68,7 +68,7 @@ def plot_pcd(pts3d, rgb):
     # Visualize the point cloud
     o3d.visualization.draw_geometries([pcd, origin_frame])
 
-def record_rgbd(frames = 50):
+def record_rgbd(frames = 50, index = 0):
 
     pcd_vid = np.zeros((frames, 720, 1280, 3), dtype = np.float32)
     rgb_vid = np.zeros((frames, 720, 1280, 3), dtype = np.uint8)
@@ -97,11 +97,11 @@ def record_rgbd(frames = 50):
         # # cv2.imshow('rgb', rgb_frame)
         # cv2.waitKey(0)
 
-    np.save("pcd_vid.npy", pcd_vid)
-    np.save("rgb_vid.npy", rgb_vid)
+    np.save("saved_data/pcd_vid_" + str(index) + ".npy", pcd_vid)
+    # np.save("rgb_vid.npy", rgb_vid)
 
     # Define video output parameters
-    output_path = "rgb_vid.mp4"  # Output file name
+    output_path = "saved_data/rgb_vid_" + str(index) + ".mp4"  # Output file name
     # output_path = "rgb_vid.avi"  # Output file name
     fps = 30  # Frames per second
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec for MP4
@@ -134,8 +134,9 @@ def get_current_rgbd():
     
     np.save("pcd.npy", pts3d)
     # np.save("rgb.npy", rgb)
-
     cv2.imwrite("rgb.jpg", rgb)
+
+    return pts3d, rgb
 
 
 
@@ -181,11 +182,13 @@ def record_anchor_rgbd():
             np.save(f, res)
 
 # os.makedirs(f"/home/lifanyu/tax3d/{DEMO}/", exist_ok=True)
-os.makedirs(f"vtamp/demo{DEMO}/frames", exist_ok=True)
+# os.makedirs(f"vtamp/demo{DEMO}/frames", exist_ok=True)
 
-# time.sleep(5)
-print("Starting to record")
-# record_rgbd(frames = 200)
-get_current_rgbd()
+# time.sleep(3)
+# print("Starting to record")
+# --
+# record_rgbd(frames = 200, index=46)
+# --
+# get_current_rgbd()
 #read_rgbd()
 # record_anchor_rgbd()
