@@ -37,7 +37,7 @@ if __name__ == "__main__":
     masks = masks[indices]
     print(labels)
     print(indices)
-    # gsam2.visualize(img_path, masks, confidences, labels, input_boxes)
+    gsam2.visualize(img_path, masks, confidences, labels, input_boxes)
 
     # Get the initial point cloud:
     initial_pcd, initial_pcd_seg = data_collector.prepare_initial_pcd(masks, pcd, vis_threshold)

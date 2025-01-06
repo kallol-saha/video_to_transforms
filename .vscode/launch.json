@@ -4,7 +4,10 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+<<<<<<< HEAD
 
+=======
+>>>>>>> b3df3e3b1e0d2ae1bc522926f3ad33300d3f4b56
         {
             "name": "Python Debugger: Current File with Arguments",
             "type": "debugpy",
@@ -12,8 +15,12 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "args": [
+<<<<<<< HEAD
                 "--object_names",
                 "rubber duck. blue box. wooden bowl"
+=======
+                "--video_index", "0"
+>>>>>>> b3df3e3b1e0d2ae1bc522926f3ad33300d3f4b56
             ]
         }
     ]

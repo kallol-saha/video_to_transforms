@@ -20,7 +20,7 @@ class Cotracker3:
 
         frames = iio.imread(video_path, plugin="FFMPEG")  # plugin="pyav"
         video = torch.tensor(frames).permute(0, 3, 1, 2)[None].float().to(self.device)  # B T C H W
-
+        
         mask = torch.tensor(mask, device=self.device)#.unsqueeze(0).unsqueeze(0)
         queries = torch.nonzero(mask.t() == 1.0, as_tuple=False).to(torch.float32)
 
@@ -32,26 +32,40 @@ class Cotracker3:
 
         # - queries. Queried points of shape (B, N, 3) in format (t, x, y) for frame index and pixel coordinates.
 
-        max_batch = 2000
+        max_batch = 400
         iters = queries.shape[1] // max_batch
         last_batch = queries.shape[1] % max_batch
         iters = iters + (1 if last_batch > 0 else 0)
 
-        tracks_array = []
-        visibility_array = []
+        # tracks_array = []
+        # visibility_array = []
+        tracks = torch.zeros((video.shape[1], queries.shape[1], 2))
 
         for i in tqdm(range(iters)):
 
-            pred_tracks, pred_visibility = self.cotracker(video, queries = queries[:, i * max_batch : (i+1) * max_batch]) #grid_size=grid_size) # B T N 2,  B T N 1
-            tracks_array.append(pred_tracks)
-            visibility_array.append(pred_visibility)
+            pred_tracks, _ = self.cotracker(video, queries = queries[:, i * max_batch : (i+1) * max_batch]) #grid_size=grid_size) # B T N 2,  B T N 1
+            tracks[:, i * max_batch : (i+1) * max_batch] = pred_tracks[0]
+            del pred_tracks
+            torch.cuda.empty_cache()
+            # pred_tracks => (frames, num_points, 2)
+            
+            # track_diff = torch.norm(pred_tracks[1:] - pred_tracks[:-1], dim=-1)
+            # del pred_tracks
+            # torch.cuda.empty_cache()
+            # track_diff_sum = torch.sum(track_diff, dim=-1)
+            # del track_diff
+            # torch.cuda.empty_cache()
 
-        pred_tracks = torch.cat(tracks_array, dim=2)
-        pred_visibility = torch.cat(visibility_array, dim=2)
+            # tracks_array.append(track_diff_sum)
+            # visibility_array.append(pred_visibility)
 
-        return pred_tracks, pred_visibility
+        # output = torch.stack(tracks_array, dim=0)
+        # output = torch.sum(output, dim = 0) / queries.shape[1]
+        # pred_visibility = torch.cat(visibility_array, dim=2)
+
+        return tracks
     
-    def visualize(self, video_path, pred_tracks, pred_visibility, filename = "video"):
+    def visualize(self, video_path, pred_tracks, pred_visibility = None, filename = "video"):
 
         # pred_tracks => (B, frames, num_queries, 2) locations of the query points in each frame of the video
         # pred_visibility => (B, frames, num_queries) mask of whether the point is visible in that frame or not

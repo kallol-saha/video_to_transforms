@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 import open3d as o3d
 from tqdm import tqdm
 
-DIFF_THRESH = 3.            # What is the point track difference below which object is considered stationary
-STATIONARY_THRESH = 4       # What is the minimum change in timesteps between different stationary frames for an object to be considered transformed
+DIFF_THRESH = 5.            # What is the point track difference below which object is considered stationary
+STATIONARY_THRESH = 8       # What is the minimum change in timesteps between different stationary frames for an object to be considered transformed
 
 # def plot_pcd(pts3d):
 
@@ -131,7 +131,7 @@ class DataCollector:
 
         min_heap = []
         for i, arr in enumerate(object_change_points):
-            if arr:  # Only add if the array is not empty
+            if len(arr) > 0:  # Only add if the array is not empty
                 heapq.heappush(min_heap, (arr[0], i, 0))
 
         change_frames = []
@@ -162,6 +162,9 @@ class DataCollector:
             track_diff = np.linalg.norm(track[1:] - track[:-1], axis = -1)
             track_diff_avg = np.mean(track_diff, axis = -1)
 
+            # plt.plot(track_diff_avg)
+            # plt.show()
+
             stationary_mask = np.where(track_diff_avg < DIFF_THRESH)[0]
             stationary_mask_diff = stationary_mask[1:] - stationary_mask[:-1]
             change_points = np.where(stationary_mask_diff > STATIONARY_THRESH)[0]
@@ -181,6 +184,46 @@ class DataCollector:
 
             if i == len(change_frames):
                 indices.append((object_tracks[0].shape[0] + prev_change) // 2)      # After the last transition
+                break
+            
+            change_start = object_stationary_masks[change_objects[i]][change_frames[i]]     # This is the start of the "peak" from the left, for the current object
+            indices.append((change_start + prev_change) // 2)       # The midpoint of the valley is considered as the index
+
+            prev_change = object_stationary_masks[change_objects[i]][change_frames[i]+1]    # Reset the previous change the end of the "peak" on the right 
+
+        # Length of change_objects will always be one less than indices, because no more objects are moved at the last index.
+        return np.array(indices), change_objects
+    
+    def detect_movement_new(self, object_track_diff_averages):
+
+        object_change_points = []
+        object_stationary_masks = []
+        
+        for i in range(len(object_track_diff_averages)):
+
+            # track = object_tracks[i]
+            # track_diff = np.linalg.norm(track[1:] - track[:-1], axis = -1)
+            # track_diff_avg = np.mean(track_diff, axis = -1)
+
+            track_diff_avg = object_track_diff_averages[i]
+
+            stationary_mask = np.where(track_diff_avg < DIFF_THRESH)[0]
+            stationary_mask_diff = stationary_mask[1:] - stationary_mask[:-1]
+            change_points = np.where(stationary_mask_diff > STATIONARY_THRESH)[0]
+
+            object_change_points.append(change_points)
+            object_stationary_masks.append(stationary_mask)
+
+        change_frames, change_objects = self.get_movement_order(object_change_points)
+        change_frames = np.array(change_frames)
+
+        prev_change = 0
+        indices = []
+
+        for i in range(len(change_frames) + 1):
+
+            if i == len(change_frames):
+                indices.append((object_track_diff_averages[0].shape[0] + prev_change) // 2)      # After the last transition
                 break
             
             change_start = object_stationary_masks[change_objects[i]][change_frames[i]]     # This is the start of the "peak" from the left, for the current object
@@ -227,7 +270,7 @@ class DataCollector:
         
         return R, t, T
     
-    def ransac_find_transformation(self, P, Q, sample_size = 100, threshold=0.1, max_iterations=100, inlier_ratio=0.5):
+    def ransac_find_transformation(self, P, Q, sample_size = 100, threshold=0.2, max_iterations=100, inlier_ratio=0.5):
         best_R = None
         best_t = None
         best_inliers = []
@@ -261,12 +304,16 @@ class DataCollector:
             Q_inliers = Q[best_inliers]
             best_R, best_t, _ = self.get_transformation_between_points(P_inliers, Q_inliers)
 
-        # Form transformation matrix
-        T = np.eye(4)
-        T[:3, :3] = best_R
-        T[:3, 3] = best_t
+            # Form transformation matrix
+            T = np.eye(4)
+            T[:3, :3] = best_R
+            T[:3, 3] = best_t
         
-        return T
+            return T
+        
+        else:
+
+            return np.eye(4)
         
     def transform_pcd(self, pcd, T):
 
@@ -294,6 +341,7 @@ class DataCollector:
         for i in tqdm(range(len(indices) - 1)):
 
             track = object_tracks[objects[i]]       # Get the point track of the object being moved
+            # track => (frames, num_points, 2)
 
             pts2d_before = np.round(track[indices[i]]).astype('int')
             pts2d_after = np.round(track[indices[i+1]]).astype('int')
@@ -302,10 +350,15 @@ class DataCollector:
             pts3d_after = pcd_sequence[indices[i+1], pts2d_after[:, 1], pts2d_after[:, 0]]
             # I've done a visualization check on the 3d points before and after, we are good to go for svd !!
 
+            # Filter points before transforming:
+            mask = (pts3d_before[:, -1] < 0.8) & (pts3d_after[:, -1] < 0.8)
+            pts3d_before = pts3d_before[mask]
+            pts3d_after = pts3d_after[mask]
+
             # plot_pcd(np.concatenate([pts3d_before, pts3d_after], axis = 0))
 
-            T = self.ransac_find_transformation(pts3d_before, pts3d_after, threshold = 0.02)
-            # I've done a visualization check for the transform. But, TODO: needs to be robust to outliers (see result in progress report)
+            T = self.ransac_find_transformation(pts3d_before, pts3d_after, threshold = 0.05)
+            # I've done a visualization check for the transform.
             
             # transformed_pcd = self.transform_pcd(pts3d_before, T)
             # seg = np.zeros((2 * pts3d_before.shape[0],), dtype = np.int64)
@@ -320,6 +373,8 @@ class DataCollector:
         """
         masks => (num_objects, 720, 1280)
         """
+
+        # TODO: Assume points in world frame instead of camera frame for processing
 
         num_objects = masks.shape[0]
         
@@ -352,7 +407,7 @@ class DataCollector:
 
         return pcd, pcd_seg
     
-    def save_final_data(self, initial_pcd, initial_pcd_seg, transforms, objects, initial_rgb, mode = "train"):
+    def save_final_data(self, initial_pcd, initial_pcd_seg, transforms, objects, mode = "train"):
         
         prev_pcd = initial_pcd.copy()
         pcd_seg = initial_pcd_seg.copy()
@@ -366,11 +421,16 @@ class DataCollector:
 
             classes = np.where(obj_mask, 0, 1)
 
+            if np.sum(classes == 1) < 1024:
+                # Skip this
+                continue
+            if np.sum(classes == 0) < 1024:
+                # Skip this
+                continue
+
             # plot_pcd(transformed_pcd, pcd_seg)
             # plot_pcd(transformed_pcd, classes)
-        
-            # TODO: Remember to transform to robot frame (do we need this? Because taxposeD applies random transforms anyways)
-        
+                
             if mode == "train":
                 np.savez(
                         self.folder_path + str(mode) + "/" + str(self.train_demos) + "_teleport_obj_points.npz",
