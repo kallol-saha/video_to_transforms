@@ -7,5 +7,6 @@ assets/data
 test.py
 *.npy
 rgb.jpg
+data/
 
 __pycache__

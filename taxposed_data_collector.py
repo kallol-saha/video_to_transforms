@@ -84,10 +84,9 @@ def plot_pcd_camera_frame(pts3d, pcd_seg = None):
     
     o3d.visualization.draw_geometries([pts_vis, frame])
 
-class DataCollector:
+class TaxPoseDDataCollector:
 
     def __init__(self, folder_path):
-
         # Prepare data folder:
         self.folder_path = folder_path + "/"
         os.makedirs(self.folder_path, exist_ok=True)
@@ -275,6 +274,7 @@ class DataCollector:
         best_t = None
         best_inliers = []
         n_points = len(P)
+        sample_size = min(sample_size, int(n_points*0.6))
         
         for _ in range(max_iterations):
             # Randomly sample a subset of correspondences
@@ -408,6 +408,26 @@ class DataCollector:
         return pcd, pcd_seg
     
     def save_final_data(self, initial_pcd, initial_pcd_seg, transforms, objects, mode = "train"):
+        """
+        Saves point cloud data with transformations and segmentation masks.
+        This function processes and saves point cloud data by applying a series of transformations
+        to specific objects in the scene, while maintaining segmentation information.
+        Args:
+            initial_pcd (numpy.ndarray): Initial point cloud data.
+            initial_pcd_seg (numpy.ndarray): Initial segmentation masks for the point cloud.
+            transforms (list): List of transformation matrices to be applied sequentially.
+            objects (list): List of object IDs corresponding to the transforms.
+            mode (str, optional): Save mode - either "train" or "test". Defaults to "train".
+        Each saved file contains:
+            - clouds: Transformed point cloud data
+            - masks: Original segmentation masks
+            - classes: Binary classification (0 for transformed object, 1 for background)
+        Note:
+            - Skips cases where either foreground or background has less than 1024 points
+            - Files are saved with naming pattern: "{mode}/{demo_number}_teleport_obj_points.npz"
+            - Updates internal train_demos or test_demos counter based on mode
+        """
+
         
         prev_pcd = initial_pcd.copy()
         pcd_seg = initial_pcd_seg.copy()
