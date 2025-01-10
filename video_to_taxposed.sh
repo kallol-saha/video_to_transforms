@@ -57,9 +57,9 @@ for dir in "$input_dir"/*/ ; do
     if [ -d "$dir" ]; then
         echo "Processing directory: $dir"
         if [ "$debug" = true ]; then
-            python video_to_taxposed.py --input_path "$dir" --output_path "$output_dir" --object_names "$object_names" --debug
+            python video_to_taxposed.py --input_path "$dir" --output_path "$output_dir" --object_names "$object_names" --vis_threshold 2 --debug
         else
-            python video_to_taxposed.py --input_path "$dir" --output_path "$output_dir" --object_names "$object_names"
+            python video_to_taxposed.py --input_path "$dir" --output_path "$output_dir" --object_names "$object_names" --vis_threshold 2
         fi
     fi
 done

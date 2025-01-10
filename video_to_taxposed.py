@@ -260,7 +260,7 @@ if __name__ == "__main__":
     parser.add_argument("--object_names", default="mug.", help="Space-separated string of object names, each ending with period")
     parser.add_argument("--num_objects", type=int, default=1, help="Number of objects to track")
     parser.add_argument("--device", default="cuda:1", help="Device to run computations on")
-    parser.add_argument("--vis_threshold", type=float, default=1.8, help="Maximum distance threshold for point visibility")
+    parser.add_argument("--vis_threshold", type=float, default=1, help="Maximum distance threshold for point visibility")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
 
     args = parser.parse_args()
