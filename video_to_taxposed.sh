@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Example usage: ./video_to_taxposed.sh --input_dir ~/robot-grasp/data/demos/demos_20241230_173916 --output_dir ~/robot-grasp/data/taxposed_for_demos_20241230_173916 --object_names "mug." [--debug]
+# Example usage: ./video_to_taxposed.sh --input_dir ~/robot-grasp/data/demos/demos_20241230_173916 --output_dir ~/robot-grasp/data/taxposed_for_demos_20241230_173916 --object_names "mug." --debug
 
 # Default values
 input_dir=""
@@ -53,13 +53,11 @@ source ~/miniconda3/etc/profile.d/conda.sh
 conda activate vid2trans
 
 # Process each directory in input_dir
-for dir in "$input_dir"/*/ ; do
-    if [ -d "$dir" ]; then
-        echo "Processing directory: $dir"
-        if [ "$debug" = true ]; then
-            python video_to_taxposed.py --input_path "$dir" --output_path "$output_dir" --object_names "$object_names" --vis_threshold 2 --debug
-        else
-            python video_to_taxposed.py --input_path "$dir" --output_path "$output_dir" --object_names "$object_names" --vis_threshold 2
-        fi
+for dir in $(find "$input_dir" -maxdepth 1 -mindepth 1 -type d | sort); do
+    echo "Processing directory: $dir"
+    if [ "$debug" = true ]; then
+        python video_to_taxposed.py --input_path "$dir" --output_path "$output_dir" --object_names "$object_names" --vis_threshold 2 --icp --debug
+    else
+        python video_to_taxposed.py --input_path "$dir" --output_path "$output_dir" --object_names "$object_names" --vis_threshold 2 --icp
     fi
 done

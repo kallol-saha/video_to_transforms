@@ -43,7 +43,7 @@ class Cotracker3:
 
         for i in tqdm(range(iters)):
 
-            pred_tracks, _ = self.cotracker(video, queries = queries[:, i * max_batch : (i+1) * max_batch]) #grid_size=grid_size) # B T N 2,  B T N 1
+            pred_tracks, _ = self.cotracker(video, queries = queries[:, i * max_batch : (i+1) * max_batch], grid_size=3) # B T N 2,  B T N 1
             tracks[:, i * max_batch : (i+1) * max_batch] = pred_tracks[0]
             del pred_tracks
             torch.cuda.empty_cache()
@@ -65,7 +65,7 @@ class Cotracker3:
 
         return tracks
     
-    def visualize(self, video_path, pred_tracks, pred_visibility = None, filename = "video"):
+    def visualize(self, video_path, pred_tracks, output_path="./outputs", pred_visibility = None, filename = "video"):
 
         # pred_tracks => (B, frames, num_queries, 2) locations of the query points in each frame of the video
         # pred_visibility => (B, frames, num_queries) mask of whether the point is visible in that frame or not
@@ -73,5 +73,5 @@ class Cotracker3:
         frames = iio.imread(video_path, plugin="FFMPEG")  # plugin="pyav"
         video = torch.tensor(frames).permute(0, 3, 1, 2)[None].float().to(self.device)  # B T C H W
         
-        vis = Visualizer(save_dir="./outputs", pad_value=120, linewidth=3)
+        vis = Visualizer(save_dir=output_path, pad_value=120, linewidth=3)
         vis.visualize(video, pred_tracks, pred_visibility, filename = filename) #, segm_mask = mask)

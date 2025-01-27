@@ -17,6 +17,7 @@ from gsam2.sam2.build_sam import build_sam2
 from gsam2.sam2.sam2_image_predictor import SAM2ImagePredictor
 from gsam2.grounding_dino.groundingdino.util.inference import load_model, predict, load_image
 
+
 """
 Hyper parameters
 """
@@ -26,21 +27,24 @@ GROUNDING_DINO_CONFIG = "gsam2/grounding_dino/groundingdino/config/GroundingDINO
 GROUNDING_DINO_CHECKPOINT = "assets/weights/groundingdino_swint_ogc.pth"
 BOX_THRESHOLD = 0.35
 TEXT_THRESHOLD = 0.25
-OUTPUT_DIR = Path("outputs/")
-# create output directory
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # environment settings
 # use bfloat16
 
 class GSAM2:
-
-    def __init__(self, device = None):
+    def __init__(self,
+                 device = None,
+                 output_dir = Path("outputs/"),
+                 debug = False):
         
         if device is not None:
             self.device = device
         else:
             self.device = "cuda" if torch.cuda.is_available() else "cpu"
+
+        self.output_dir = output_dir
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.debug = debug
 
         # build SAM2 image predictor
         self.sam2_model = build_sam2(SAM2_MODEL_CONFIG, SAM2_CHECKPOINT, device=self.device)
@@ -154,6 +158,9 @@ class GSAM2:
         if len(masks.shape) == 3:
             masks = masks[np.newaxis, :]
 
+        if self.debug:
+            self.visualize_image(img_path, masks, scores, labels, input_boxes)
+
         return masks, scores, logits, confidences, labels, input_boxes
     
     def first_n_unique_elements(self, strings, n=3):
@@ -186,7 +193,30 @@ class GSAM2:
         unique_labels, indices = self.first_n_unique_elements(labels, num_objects)        # We only take the best confidence for each, assuming confidences are already in descending order
         filtered_masks = masks[indices]
         
-        return filtered_masks, unique_labels    
+        return filtered_masks, unique_labels
+    
+    def erode_masks(self, masks, kernel_size = 10):
+        kernel = np.ones((kernel_size, kernel_size), np.uint8)
+        eroded_masks = []
+
+        # Handle (N, 1, H, W) shape by squeezing the second dimension
+        masks = np.squeeze(masks, axis=1)
+
+        for mask in masks:
+            mask = mask.astype(np.uint8)
+            eroded_mask = cv2.erode(mask, kernel, iterations=1)
+            # Restore the shape to match input format
+            eroded_mask = np.expand_dims(eroded_mask, axis=0)
+            eroded_masks.append(eroded_mask)
+        
+        if self.debug:
+            for i, (original_mask, eroded_mask) in enumerate(zip(masks, eroded_masks)):
+                original_mask_img = original_mask * 255
+                eroded_mask_img = np.squeeze(eroded_mask) * 255
+                cv2.imwrite(os.path.join(self.output_dir, f"original_mask_{i}.png"), original_mask_img)
+                cv2.imwrite(os.path.join(self.output_dir, f"eroded_mask_{i}.png"), eroded_mask_img)
+        
+        return np.array(eroded_masks)
     
     def visualize(self, video_path, masks, confidences, labels, input_boxes, frame = 0):
 
@@ -230,11 +260,11 @@ class GSAM2:
         label_annotator = sv.LabelAnnotator()
         annotated_frame = label_annotator.annotate(scene=annotated_frame, detections=detections, labels=labels)
         annotated_frame = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
-        cv2.imwrite(os.path.join(OUTPUT_DIR, "groundingdino_annotated_image.jpg"), annotated_frame)
+        cv2.imwrite(os.path.join(self.output_dir, "groundingdino_annotated_image.jpg"), annotated_frame)
 
         mask_annotator = sv.MaskAnnotator()
         annotated_frame = mask_annotator.annotate(scene=annotated_frame, detections=detections)
-        cv2.imwrite(os.path.join(OUTPUT_DIR, "grounded_sam2_annotated_image_with_mask.jpg"), annotated_frame)
+        cv2.imwrite(os.path.join(self.output_dir, "grounded_sam2_annotated_image_with_mask.jpg"), annotated_frame)
 
 
     def visualize_image(self, img_path, masks, confidences, labels, input_boxes):
@@ -279,8 +309,17 @@ class GSAM2:
         label_annotator = sv.LabelAnnotator()
         annotated_frame = label_annotator.annotate(scene=annotated_frame, detections=detections, labels=labels)
         annotated_frame = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
-        cv2.imwrite(os.path.join(OUTPUT_DIR, "groundingdino_annotated_image.jpg"), annotated_frame)
+        cv2.imwrite(os.path.join(self.output_dir, "groundingdino_annotated_image.jpg"), annotated_frame)
 
         mask_annotator = sv.MaskAnnotator()
         annotated_frame = mask_annotator.annotate(scene=annotated_frame, detections=detections)
-        cv2.imwrite(os.path.join(OUTPUT_DIR, "grounded_sam2_annotated_image_with_mask.jpg"), annotated_frame)
+        cv2.imwrite(os.path.join(self.output_dir, "grounded_sam2_annotated_image_with_mask.jpg"), annotated_frame)
+
+
+if __name__ == '__main__':
+    gsam2 = GSAM2(
+        device = "cuda",
+        output_dir = Path("/home/jacinto/robot-grasp/data/demos/spatial_tracker_testing/"),
+        debug = True
+    )
+    gsam2.get_masks("mug.", "/home/jacinto/robot-grasp/data/demos/spatial_tracker_testing/video.mp4", frame=0)
