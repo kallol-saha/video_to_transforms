@@ -53,11 +53,11 @@ source ~/miniconda3/etc/profile.d/conda.sh
 conda activate vid2trans
 
 # Process each directory in input_dir
-for dir in $(find "$input_dir" -maxdepth 1 -mindepth 1 -type d | sort); do
+for dir in $(find "$input_dir" -maxdepth 1 -mindepth 1 -type d | sort -V); do
     echo "Processing directory: $dir"
     if [ "$debug" = true ]; then
-        python video_to_taxposed.py --input_path "$dir" --output_path "$output_dir" --object_names "$object_names" --vis_threshold 2 --icp --debug
+        python video_to_taxposed.py --input_path "$dir" --output_path "$output_dir" --object_names "$object_names" --vis_threshold 2 --debug --just_final
     else
-        python video_to_taxposed.py --input_path "$dir" --output_path "$output_dir" --object_names "$object_names" --vis_threshold 2 --icp
+        python video_to_taxposed.py --input_path "$dir" --output_path "$output_dir" --object_names "$object_names" --vis_threshold 2 --just_final
     fi
 done

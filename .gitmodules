@@ -7,3 +7,6 @@
 [submodule "SpaTracker"]
 	path = SpaTracker
 	url = https://github.com/henry123-boy/SpaTracker
+[submodule "DELTA_densetrack3d"]
+	path = DELTA_densetrack3d
+	url = https://github.com/snap-research/DELTA_densetrack3d

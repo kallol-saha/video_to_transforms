@@ -10,12 +10,16 @@ import numpy as np
 import supervision as sv
 import pycocotools.mask as mask_util
 from pathlib import Path
+import scipy.ndimage
 from PIL import Image
 import gsam2.grounding_dino.groundingdino.datasets.transforms as T
 from torchvision.ops import box_convert
 from gsam2.sam2.build_sam import build_sam2
 from gsam2.sam2.sam2_image_predictor import SAM2ImagePredictor
 from gsam2.grounding_dino.groundingdino.util.inference import load_model, predict, load_image
+import argparse
+
+# Example usage: python gsam_wrapper.py --video_path /home/jacinto/robot-grasp/data/demos/simple_movements/18/video.mp4 --output_dir /home/jacinto/robot-grasp/data/demos/simple_movements/18/ --object_name "mug."
 
 
 """
@@ -188,10 +192,37 @@ class GSAM2:
 
         return unique_elements, unique_indices
     
-    def filter_masks(self, masks, labels, num_objects):
+    def filter_masks(self, masks, labels, num_objects, technique="closest_to_center"):
 
-        unique_labels, indices = self.first_n_unique_elements(labels, num_objects)        # We only take the best confidence for each, assuming confidences are already in descending order
-        filtered_masks = masks[indices]
+        if technique == "first_n":
+            unique_labels, indices = self.first_n_unique_elements(labels, num_objects)        # We only take the best confidence for each, assuming confidences are already in descending order
+            filtered_masks = masks[indices]
+        if technique == "closest_to_center":
+            print("Filtering masks using closest to center technique")
+
+            def find_centroid(mask):
+                return scipy.ndimage.center_of_mass(mask)
+
+            def distance_from_center(centroid, center):
+                return np.sqrt((centroid[0] - center[0]) ** 2 + (centroid[1] - center[1]) ** 2)
+
+            h, w = masks.shape[2], masks.shape[3]
+            center = (h / 2, w / 2)
+
+            unique_labels, indices = self.first_n_unique_elements(labels, num_objects)
+            filtered_masks = []
+
+            for label in unique_labels:
+                label_indices = [i for i, l in enumerate(labels) if l == label]
+                label_masks = masks[label_indices]
+                
+                centroids = [find_centroid(mask[0]) for mask in label_masks]
+                distances = [distance_from_center(centroid, center) for centroid in centroids]
+                
+                closest_index = label_indices[np.argmin(distances)]
+                filtered_masks.append(masks[closest_index])
+
+            filtered_masks = np.array(filtered_masks)
         
         return filtered_masks, unique_labels
     
@@ -217,6 +248,14 @@ class GSAM2:
                 cv2.imwrite(os.path.join(self.output_dir, f"eroded_mask_{i}.png"), eroded_mask_img)
         
         return np.array(eroded_masks)
+    
+    def save_masks(self, masks, output_path):
+        """
+        Save masks as binary images
+        """
+        for i, mask in enumerate(masks):
+            mask_img = np.squeeze(mask) * 255
+            cv2.imwrite(os.path.join(output_path, f"mask_{i}.png"), mask_img)
     
     def visualize(self, video_path, masks, confidences, labels, input_boxes, frame = 0):
 
@@ -317,9 +356,31 @@ class GSAM2:
 
 
 if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser(description='GSAM2 Mask Generator')
+    parser.add_argument('--device', type=str, default='cuda', help='Device to run on (cuda/cpu)')
+    parser.add_argument('--output_dir', type=str, default='/home/jacinto/robot-grasp/data/demos/spatial_tracker_testing/',
+                        help='Output directory for results')
+    parser.add_argument('--debug', action='store_true', help='Enable debug mode')
+    parser.add_argument('--video_path', type=str, required=True, help='Path to input video')
+    parser.add_argument('--frame', type=int, default=0, help='Frame number to process')
+    parser.add_argument('--object_name', type=str, required=True, help='Object name to detect')
+
+    args = parser.parse_args()
+
     gsam2 = GSAM2(
-        device = "cuda",
-        output_dir = Path("/home/jacinto/robot-grasp/data/demos/spatial_tracker_testing/"),
-        debug = True
+        device=args.device,
+        output_dir=Path(args.output_dir),
+        debug=args.debug
     )
-    gsam2.get_masks("mug.", "/home/jacinto/robot-grasp/data/demos/spatial_tracker_testing/video.mp4", frame=0)
+    
+    # Get masks and required data for visualization
+    masks, scores, logits, confidences, labels, input_boxes = gsam2.get_masks(args.object_name, args.video_path, frame=args.frame)
+    
+    # Filter the masks
+    filtered_masks, filtered_labels = gsam2.filter_masks(masks, labels, num_objects=3)
+    
+    # Save the filtered masks
+    if args.debug:
+        print("Saving masks...")
+        gsam2.save_masks(filtered_masks, args.output_dir)

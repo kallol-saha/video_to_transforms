@@ -2,6 +2,7 @@ import torch
 import numpy as np
 from cotracker3.cotracker.utils.visualizer import Visualizer
 from tqdm import tqdm
+import argparse
 import imageio.v3 as iio
 
 class Cotracker3:
@@ -75,3 +76,34 @@ class Cotracker3:
         
         vis = Visualizer(save_dir=output_path, pad_value=120, linewidth=3)
         vis.visualize(video, pred_tracks, pred_visibility, filename = filename) #, segm_mask = mask)
+
+
+if __name__ == "__main__":
+
+    # Example usage: python cotracker_wrapper.py --video_path ./inputs/vid.mp4 --mask_path ./inputs/mask.npy --output_path ./outputs
+
+    parser = argparse.ArgumentParser(description='Track points in a video using Cotracker3')
+    parser.add_argument('--video_path', type=str, required=True, help='Path to input video. Can be mkv, mp4')
+    parser.add_argument('--mask_path', type=str, required=True, help='Path to binary mask file (numpy array or png)')
+    parser.add_argument('--output_path', type=str, default='./outputs', help='Path to output directory')
+    parser.add_argument('--device', type=str, default=None, help='Device to run on (cuda/cpu)')
+    parser.add_argument('--output_name', type=str, default='video', help='Output filename')
+    args = parser.parse_args()
+
+    # Load mask from file
+    if args.mask_path.endswith('.npy'):
+        mask = np.load(args.mask_path)
+    elif args.mask_path.endswith('.png'):
+        mask = iio.imread(args.mask_path)
+    else:
+        raise ValueError("Unsupported mask file format. Please provide a .npy or .png file.")
+    
+
+    # Initialize tracker
+    tracker = Cotracker3(device=args.device)
+
+    # Get tracks
+    tracks = tracker.get_tracks(args.video_path, mask)
+
+    # Visualize results
+    tracker.visualize(args.video_path, tracks.unsqueeze(0), output_path=args.output_path, filename=args.output_name)
