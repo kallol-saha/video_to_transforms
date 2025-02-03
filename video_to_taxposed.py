@@ -188,7 +188,7 @@ class VideoToTaxposed:
             os.makedirs(tracks_path, exist_ok=True)
 
         # GSAM inference
-        masks, scores, logits, confidences, labels, input_boxes = self.gsam2.get_masks(self.object_names, mp4_video_path, 0)
+        masks, scores, logits, confidences, labels, input_boxes = self.gsam2.get_masks_video(self.object_names, mp4_video_path, 0)
         filtered_masks, _ = self.gsam2.filter_masks(masks, labels, self.num_objects)
 
         # Cotracker inference
@@ -254,7 +254,7 @@ class VideoToTaxposed:
         if self.debug:
             print("Running GSAM inference...")
         video_path = self.input_path + "/" + self.video_name + ".mkv"
-        masks, scores, logits, confidences, labels, input_boxes = self.gsam2.get_masks(self.object_names, video_path, frame=0)
+        masks, scores, logits, confidences, labels, input_boxes = self.gsam2.get_masks_video(self.object_names, video_path, frame=0)
         filtered_masks, filtered_labels = self.gsam2.filter_masks(masks, labels, self.num_objects)
         if self.debug:
             print("Labels:", filtered_labels)
@@ -321,12 +321,12 @@ class VideoToTaxposed:
         pcd_sequence = self._mk4_to_point_cloud_sequence()
         
         # Find the object mask for the first frame
-        masks, scores, logits, confidences, labels, input_boxes = self.gsam2.get_masks(self.object_names, video_path, frame=0)
+        masks, scores, logits, confidences, labels, input_boxes = self.gsam2.get_masks_video(self.object_names, video_path, frame=0)
         filtered_masks, filtered_labels = self.gsam2.filter_masks(masks, labels, self.num_objects)
         initial_pcd, initial_pcd_seg = self.data_collector.prepare_pcd(filtered_masks, pcd_sequence[0], self.vis_threshold)
         
         # Find the object mask for the last frame
-        masks, scores, logits, confidences, labels, input_boxes = self.gsam2.get_masks(self.object_names, video_path, frame=len(pcd_sequence)-1)
+        masks, scores, logits, confidences, labels, input_boxes = self.gsam2.get_masks_video(self.object_names, video_path, frame=len(pcd_sequence)-1)
         filtered_masks, filtered_labels = self.gsam2.filter_masks(masks, labels, self.num_objects)
         filtered_masks = self.gsam2.erode_masks(filtered_masks)
         final_pcd, final_pcd_seg = self.data_collector.prepare_pcd(filtered_masks, pcd_sequence[-1], self.vis_threshold)
@@ -379,7 +379,7 @@ class VideoToTaxposed:
         pcd_sequence = self._mk4_to_point_cloud_sequence()
         
         # Find the object mask for the last frame
-        masks, scores, logits, confidences, labels, input_boxes = self.gsam2.get_masks(self.object_names, video_path, frame=len(pcd_sequence)-1)
+        masks, scores, logits, confidences, labels, input_boxes = self.gsam2.get_masks_video(self.object_names, video_path, frame=len(pcd_sequence)-1)
         filtered_masks, filtered_labels = self.gsam2.filter_masks(masks, labels, self.num_objects)
         final_pcd, final_pcd_seg = self.data_collector.prepare_pcd(filtered_masks, pcd_sequence[-1], self.vis_threshold)
 

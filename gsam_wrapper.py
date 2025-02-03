@@ -88,7 +88,7 @@ class GSAM2:
 
         return image, image_transformed
     
-    def get_masks(self, object_names, video_path, frame = 0):
+    def get_masks_video(self, object_names, video_path, frame = 0):
 
         image_source, image = self.load_video_frame(video_path, frame)
 
@@ -375,7 +375,7 @@ if __name__ == '__main__':
     )
     
     # Get masks and required data for visualization
-    masks, scores, logits, confidences, labels, input_boxes = gsam2.get_masks(args.object_name, args.video_path, frame=args.frame)
+    masks, scores, logits, confidences, labels, input_boxes = gsam2.get_masks_video(args.object_name, args.video_path, frame=args.frame)
     
     # Filter the masks
     filtered_masks, filtered_labels = gsam2.filter_masks(masks, labels, num_objects=3)
