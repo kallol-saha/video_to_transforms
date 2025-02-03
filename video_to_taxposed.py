@@ -62,7 +62,7 @@ class VideoToTaxposed:
         self.data_collector = TaxPoseDDataCollector(self.output_path, self.debug)
 
 
-    def _mk4_to_point_cloud_sequence(self):
+    def _mkv_to_point_cloud_sequence(self):
         """
         Convert an MKV video file captured from a Kinect v4 camera into a sequence of point clouds.
 

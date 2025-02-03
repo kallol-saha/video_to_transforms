@@ -56,8 +56,8 @@ conda activate vid2trans
 for dir in $(find "$input_dir" -maxdepth 1 -mindepth 1 -type d | sort -V); do
     echo "Processing directory: $dir"
     if [ "$debug" = true ]; then
-        python video_to_taxposed.py --input_path "$dir" --output_path "$output_dir" --object_names "$object_names" --vis_threshold 2 --debug --just_final
+        python video_to_taxposed.py --input_path "$dir" --output_path "$output_dir" --object_names "$object_names" --vis_threshold 2 --debug --icp
     else
-        python video_to_taxposed.py --input_path "$dir" --output_path "$output_dir" --object_names "$object_names" --vis_threshold 2 --just_final
+        python video_to_taxposed.py --input_path "$dir" --output_path "$output_dir" --object_names "$object_names" --vis_threshold 2 --icp
     fi
 done

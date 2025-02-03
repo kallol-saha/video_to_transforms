@@ -51,7 +51,6 @@ def plot_pcd(pts3d, pcd_seg=None):
         else:
             # Assign different color to each point cloud
             cloud_color = cmap(i / len(pcds))[:3]
-            print(f"Color for cloud {i}:", cloud_color)
             colors = np.ones((pcd_arr.shape[0], 3)) * cloud_color
             curr_vis.colors = o3d.utility.Vector3dVector(colors)
             
