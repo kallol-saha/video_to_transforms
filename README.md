@@ -34,10 +34,10 @@ conda create -n vid2trans python=3.10
 conda activate vid2trans
 ```
 
-3. Install pytorch 2.5.0 for CUDA 12.1
+3. Install pytorch 2.5.0 for CUDA 12.4
 
 ```bash
-conda install pytorch==2.5.0 torchvision==0.20.0 torchaudio==2.5.0 pytorch-cuda=12.1 -c pytorch -c nvidia
+conda install pytorch==2.5.0 torchvision==0.20.0 torchaudio==2.5.0 pytorch-cuda=12.4 -c pytorch -c nvidia
 ```
 
 4. Install CoTracker3 and download checkpoints. (From https://github.com/facebookresearch/co-tracker)
