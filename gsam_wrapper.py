@@ -10,12 +10,17 @@ import numpy as np
 import supervision as sv
 import pycocotools.mask as mask_util
 from pathlib import Path
+import scipy.ndimage
 from PIL import Image
 import gsam2.grounding_dino.groundingdino.datasets.transforms as T
 from torchvision.ops import box_convert
 from gsam2.sam2.build_sam import build_sam2
 from gsam2.sam2.sam2_image_predictor import SAM2ImagePredictor
 from gsam2.grounding_dino.groundingdino.util.inference import load_model, predict, load_image
+import argparse
+
+# Example usage: python gsam_wrapper.py --video_path /home/jacinto/robot-grasp/data/demos/simple_movements/18/video.mp4 --output_dir /home/jacinto/robot-grasp/data/demos/simple_movements/18/ --object_name "mug."
+
 
 """
 Hyper parameters
@@ -26,21 +31,24 @@ GROUNDING_DINO_CONFIG = "gsam2/grounding_dino/groundingdino/config/GroundingDINO
 GROUNDING_DINO_CHECKPOINT = "assets/weights/groundingdino_swint_ogc.pth"
 BOX_THRESHOLD = 0.35
 TEXT_THRESHOLD = 0.25
-OUTPUT_DIR = Path("outputs/")
-# create output directory
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 # environment settings
 # use bfloat16
 
 class GSAM2:
-
-    def __init__(self, device = None):
+    def __init__(self,
+                 device = None,
+                 output_dir = Path("outputs/"),
+                 debug = False):
         
         if device is not None:
             self.device = device
         else:
             self.device = "cuda" if torch.cuda.is_available() else "cpu"
+
+        self.output_dir = output_dir
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.debug = debug
 
         # build SAM2 image predictor
         self.sam2_model = build_sam2(SAM2_MODEL_CONFIG, SAM2_CHECKPOINT, device=self.device)
@@ -80,7 +88,7 @@ class GSAM2:
 
         return image, image_transformed
     
-    def get_masks(self, object_names, video_path, frame = 0):
+    def get_masks_video(self, object_names, video_path, frame = 0):
 
         image_source, image = self.load_video_frame(video_path, frame)
 
@@ -99,7 +107,7 @@ class GSAM2:
         input_boxes = box_convert(boxes=boxes, in_fmt="cxcywh", out_fmt="xyxy").numpy()
 
         # FIXME: figure how does this influence the G-DINO model
-        torch.autocast(device_type="cuda", dtype=torch.bfloat16).__enter__()
+        torch.autocast(device_type="cuda", dtype=torch.float16).__enter__()
 
         if torch.cuda.get_device_properties(0).major >= 8:
             # turn on tfloat32 for Ampere GPUs (https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices)
@@ -154,6 +162,9 @@ class GSAM2:
         if len(masks.shape) == 3:
             masks = masks[np.newaxis, :]
 
+        if self.debug:
+            self.visualize_image(img_path, masks, scores, labels, input_boxes)
+
         return masks, scores, logits, confidences, labels, input_boxes
     
     def first_n_unique_elements(self, strings, n=3):
@@ -181,12 +192,70 @@ class GSAM2:
 
         return unique_elements, unique_indices
     
-    def filter_masks(self, masks, labels, num_objects):
+    def filter_masks(self, masks, labels, num_objects, technique="closest_to_center"):
 
-        unique_labels, indices = self.first_n_unique_elements(labels, num_objects)        # We only take the best confidence for each, assuming confidences are already in descending order
-        filtered_masks = masks[indices]
+        if technique == "first_n":
+            unique_labels, indices = self.first_n_unique_elements(labels, num_objects)        # We only take the best confidence for each, assuming confidences are already in descending order
+            filtered_masks = masks[indices]
+        if technique == "closest_to_center":
+            print("Filtering masks using closest to center technique")
+
+            def find_centroid(mask):
+                return scipy.ndimage.center_of_mass(mask)
+
+            def distance_from_center(centroid, center):
+                return np.sqrt((centroid[0] - center[0]) ** 2 + (centroid[1] - center[1]) ** 2)
+
+            h, w = masks.shape[2], masks.shape[3]
+            center = (h / 2, w / 2)
+
+            unique_labels, indices = self.first_n_unique_elements(labels, num_objects)
+            filtered_masks = []
+
+            for label in unique_labels:
+                label_indices = [i for i, l in enumerate(labels) if l == label]
+                label_masks = masks[label_indices]
+                
+                centroids = [find_centroid(mask[0]) for mask in label_masks]
+                distances = [distance_from_center(centroid, center) for centroid in centroids]
+                
+                closest_index = label_indices[np.argmin(distances)]
+                filtered_masks.append(masks[closest_index])
+
+            filtered_masks = np.array(filtered_masks)
         
-        return filtered_masks, unique_labels    
+        return filtered_masks, unique_labels
+    
+    def erode_masks(self, masks, kernel_size = 10):
+        kernel = np.ones((kernel_size, kernel_size), np.uint8)
+        eroded_masks = []
+
+        # Handle (N, 1, H, W) shape by squeezing the second dimension
+        masks = np.squeeze(masks, axis=1)
+
+        for mask in masks:
+            mask = mask.astype(np.uint8)
+            eroded_mask = cv2.erode(mask, kernel, iterations=1)
+            # Restore the shape to match input format
+            eroded_mask = np.expand_dims(eroded_mask, axis=0)
+            eroded_masks.append(eroded_mask)
+        
+        if self.debug:
+            for i, (original_mask, eroded_mask) in enumerate(zip(masks, eroded_masks)):
+                original_mask_img = original_mask * 255
+                eroded_mask_img = np.squeeze(eroded_mask) * 255
+                cv2.imwrite(os.path.join(self.output_dir, f"original_mask_{i}.png"), original_mask_img)
+                cv2.imwrite(os.path.join(self.output_dir, f"eroded_mask_{i}.png"), eroded_mask_img)
+        
+        return np.array(eroded_masks)
+    
+    def save_masks(self, masks, output_path):
+        """
+        Save masks as binary images
+        """
+        for i, mask in enumerate(masks):
+            mask_img = np.squeeze(mask) * 255
+            cv2.imwrite(os.path.join(output_path, f"mask_{i}.png"), mask_img)
     
     def visualize(self, video_path, masks, confidences, labels, input_boxes, frame = 0):
 
@@ -230,11 +299,11 @@ class GSAM2:
         label_annotator = sv.LabelAnnotator()
         annotated_frame = label_annotator.annotate(scene=annotated_frame, detections=detections, labels=labels)
         annotated_frame = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
-        cv2.imwrite(os.path.join(OUTPUT_DIR, "groundingdino_annotated_image.jpg"), annotated_frame)
+        cv2.imwrite(os.path.join(self.output_dir, "groundingdino_annotated_image.jpg"), annotated_frame)
 
         mask_annotator = sv.MaskAnnotator()
         annotated_frame = mask_annotator.annotate(scene=annotated_frame, detections=detections)
-        cv2.imwrite(os.path.join(OUTPUT_DIR, "grounded_sam2_annotated_image_with_mask.jpg"), annotated_frame)
+        cv2.imwrite(os.path.join(self.output_dir, "grounded_sam2_annotated_image_with_mask.jpg"), annotated_frame)
 
 
     def visualize_image(self, img_path, masks, confidences, labels, input_boxes):
@@ -279,8 +348,39 @@ class GSAM2:
         label_annotator = sv.LabelAnnotator()
         annotated_frame = label_annotator.annotate(scene=annotated_frame, detections=detections, labels=labels)
         annotated_frame = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
-        cv2.imwrite(os.path.join(OUTPUT_DIR, "groundingdino_annotated_image.jpg"), annotated_frame)
+        cv2.imwrite(os.path.join(self.output_dir, "groundingdino_annotated_image.jpg"), annotated_frame)
 
         mask_annotator = sv.MaskAnnotator()
         annotated_frame = mask_annotator.annotate(scene=annotated_frame, detections=detections)
-        cv2.imwrite(os.path.join(OUTPUT_DIR, "grounded_sam2_annotated_image_with_mask.jpg"), annotated_frame)
+        cv2.imwrite(os.path.join(self.output_dir, "grounded_sam2_annotated_image_with_mask.jpg"), annotated_frame)
+
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser(description='GSAM2 Mask Generator')
+    parser.add_argument('--device', type=str, default='cuda', help='Device to run on (cuda/cpu)')
+    parser.add_argument('--output_dir', type=str, default='/home/jacinto/robot-grasp/data/demos/spatial_tracker_testing/',
+                        help='Output directory for results')
+    parser.add_argument('--debug', action='store_true', help='Enable debug mode')
+    parser.add_argument('--video_path', type=str, required=True, help='Path to input video')
+    parser.add_argument('--frame', type=int, default=0, help='Frame number to process')
+    parser.add_argument('--object_name', type=str, required=True, help='Object name to detect')
+
+    args = parser.parse_args()
+
+    gsam2 = GSAM2(
+        device=args.device,
+        output_dir=Path(args.output_dir),
+        debug=args.debug
+    )
+    
+    # Get masks and required data for visualization
+    masks, scores, logits, confidences, labels, input_boxes = gsam2.get_masks_video(args.object_name, args.video_path, frame=args.frame)
+    
+    # Filter the masks
+    filtered_masks, filtered_labels = gsam2.filter_masks(masks, labels, num_objects=3)
+    
+    # Save the filtered masks
+    if args.debug:
+        print("Saving masks...")
+        gsam2.save_masks(filtered_masks, args.output_dir)

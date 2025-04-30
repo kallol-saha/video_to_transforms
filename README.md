@@ -34,10 +34,10 @@ conda create -n vid2trans python=3.10
 conda activate vid2trans
 ```
 
-3. Install pytorch 2.5.1 for CUDA 12.1
+3. Install pytorch 2.5.0 for CUDA 12.4
 
 ```bash
-conda install pytorch==2.5.0 torchvision==0.20.0 torchaudio==2.5.0 pytorch-cuda=12.1 -c pytorch -c nvidia
+conda install pytorch==2.5.0 torchvision==0.20.0 torchaudio==2.5.0 pytorch-cuda=12.4 -c pytorch -c nvidia
 ```
 
 4. Install CoTracker3 and download checkpoints. (From https://github.com/facebookresearch/co-tracker)
@@ -45,14 +45,14 @@ conda install pytorch==2.5.0 torchvision==0.20.0 torchaudio==2.5.0 pytorch-cuda=
 ```bash
 cd cotracker3
 pip install -e .
-cd ../..
+cd ..
 
 cd assets/weights
 # download the online (multi window) model
 wget https://huggingface.co/facebook/cotracker3/resolve/main/scaled_online.pth
 # download the offline (single window) model
 wget https://huggingface.co/facebook/cotracker3/resolve/main/scaled_offline.pth
-cd ../..
+cd ..
 ```
 
 5. Install Grounded-SAM-2 and download checkpoints. (From https://github.com/IDEA-Research/Grounded-SAM-2)
@@ -61,7 +61,7 @@ cd ../..
 cd gsam2
 pip install -e .        
 pip install --no-build-isolation -e grounding_dino      # Install grounding dino
-cd ../..
+cd ..
 
 cd assets/weights
 bash download_sam_ckpts.sh
@@ -76,4 +76,14 @@ pip install -r requirements.txt
 
 ## Usage
 
-Run the ```generate_data.py``` file
+Run the script capture_video_demos.sh to capture the real demonstrations from a Kinect Camera.
+For example:
+```bash
+./capture_video_demos.sh --num_videos 15 --duration 6
+```
+
+Run the script video_to_taxposed.sh to generate the [TAXPOSED](https://github.com/himty/taxposeD) data for training and testing.
+For example:
+```bash
+./video_to_taxposed.sh --input_dir ./data/demos/demos_20250106_140248/ --output_dir ~/robot-grasp/data/demos/taxposed --object_names "mug."
+```

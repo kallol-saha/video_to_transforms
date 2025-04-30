@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 import open3d as o3d
 from tqdm import tqdm
 
-DIFF_THRESH = 5.            # What is the point track difference below which object is considered stationary
-STATIONARY_THRESH = 8       # What is the minimum change in timesteps between different stationary frames for an object to be considered transformed
+DIFF_THRESH = 1.            # What is the point track difference below which object is considered stationary
+STATIONARY_THRESH = 4     # What is the minimum change in timesteps between different stationary frames for an object to be considered transformed
 
 # def plot_pcd(pts3d):
 
@@ -18,26 +18,45 @@ STATIONARY_THRESH = 8       # What is the minimum change in timesteps between di
 #     return [pts_vis]
 
 
-def plot_pcd(pts3d, pcd_seg = None):
-
-    pcd = np.zeros_like(pts3d, dtype = np.float64)
-    pcd[:, :] = pts3d[:, :]
+def plot_pcd(pts3d, pcd_seg=None):
+    """
+    Plot one or multiple point clouds with optional segmentation masks.
     
-    pts_vis = o3d.geometry.PointCloud()
-    pts_vis.points = o3d.utility.Vector3dVector(pcd)
+    Args:
+        pts3d: Either a single point cloud array (n,3) or list of point clouds
+        pcd_seg: Either a single segmentation array or list of segmentation arrays (optional)
+    """
+    # Convert single inputs to lists for consistent processing
+    pcds = pts3d if isinstance(pts3d, list) else [pts3d]
+    pcd_segs = pcd_seg if isinstance(pcd_seg, list) or pcd_seg is None else [pcd_seg]
     
-    if pcd_seg is not None:    
+    pts_vis = []
+    cmap = plt.get_cmap("tab10")
+    
+    for i, pcd in enumerate(pcds):
+        pcd_arr = np.zeros_like(pcd, dtype=np.float64)
+        pcd_arr[:, :] = pcd[:, :]
+        
+        curr_vis = o3d.geometry.PointCloud()
+        curr_vis.points = o3d.utility.Vector3dVector(pcd_arr)
+        
+        if pcd_segs is not None and len(pcd_segs) > i:
+            # Apply segmentation colors
+            seg_ids = np.unique(pcd_segs[i])
+            n = len(seg_ids)
+            id_to_color = {uid: cmap(i / n)[:3] for i, uid in enumerate(seg_ids)}
+            colors = np.array([id_to_color[seg_id] for seg_id in pcd_segs[i]])
+            print(f"Segmentation colors for cloud {i}:", id_to_color)
+            curr_vis.colors = o3d.utility.Vector3dVector(colors)
+        else:
+            # Assign different color to each point cloud
+            cloud_color = cmap(i / len(pcds))[:3]
+            colors = np.ones((pcd_arr.shape[0], 3)) * cloud_color
+            curr_vis.colors = o3d.utility.Vector3dVector(colors)
+            
+        pts_vis.append(curr_vis)
 
-        seg_ids = np.unique(pcd_seg)
-        n = len(seg_ids)
-        cmap = plt.get_cmap("tab10")
-        id_to_color = {uid: cmap(i / n)[:3] for i, uid in enumerate(seg_ids)}
-        colors = np.array([id_to_color[seg_id] for seg_id in pcd_seg])
-        # print("Seg IDs = ", seg_ids)
-        # print("Colors = ", id_to_color)
-        pts_vis.colors = o3d.utility.Vector3dVector(colors)
-
-    o3d.visualization.draw_geometries([pts_vis])
+    o3d.visualization.draw_geometries(pts_vis)
 
 def plot_pcd_with_frame(pts3d, pcd_seg = None):
 
@@ -84,10 +103,9 @@ def plot_pcd_camera_frame(pts3d, pcd_seg = None):
     
     o3d.visualization.draw_geometries([pts_vis, frame])
 
-class DataCollector:
+class TaxPoseDDataCollector:
 
-    def __init__(self, folder_path):
-
+    def __init__(self, folder_path, debug=False):
         # Prepare data folder:
         self.folder_path = folder_path + "/"
         os.makedirs(self.folder_path, exist_ok=True)
@@ -96,6 +114,7 @@ class DataCollector:
 
         self.train_demos = len(os.listdir(self.folder_path + "train/"))
         self.test_demos = len(os.listdir(self.folder_path + "test/"))
+        self.debug = debug
 
     def get_indices(self, pred_tracks):
         """
@@ -125,6 +144,9 @@ class DataCollector:
             stationary_segment = track_diff_avg[change_segs[i] : change_segs[i+1]]
             indices.append(np.argmin(stationary_segment) + change_segs[i])
 
+        if self.debug:
+            print("Indices = ", indices)
+
         return indices
     
     def get_movement_order(self, object_change_points):
@@ -150,11 +172,15 @@ class DataCollector:
 
         return change_frames, change_objects
     
-    def detect_movement(self, object_tracks):
+    def detect_movement(self, object_tracks, take_first_and_last = False):
+
+        if take_first_and_last:
+            return np.array([0, len(object_tracks)-1]), [0]
 
         track_diffs = np.zeros((len(object_tracks), object_tracks[0].shape[0] - 1))
         object_change_points = []
         object_stationary_masks = []
+
         
         for i in range(len(object_tracks)):
 
@@ -192,47 +218,70 @@ class DataCollector:
             prev_change = object_stationary_masks[change_objects[i]][change_frames[i]+1]    # Reset the previous change the end of the "peak" on the right 
 
         # Length of change_objects will always be one less than indices, because no more objects are moved at the last index.
+        if self.debug:
+            print("Results from detect_movement:", np.array(indices), change_objects)
+
         return np.array(indices), change_objects
     
-    def detect_movement_new(self, object_track_diff_averages):
+    # def detect_movement_new(self, object_track_diff_averages):
 
-        object_change_points = []
-        object_stationary_masks = []
+    #     object_change_points = []
+    #     object_stationary_masks = []
         
-        for i in range(len(object_track_diff_averages)):
+    #     for i in range(len(object_track_diff_averages)):
 
-            # track = object_tracks[i]
-            # track_diff = np.linalg.norm(track[1:] - track[:-1], axis = -1)
-            # track_diff_avg = np.mean(track_diff, axis = -1)
+    #         # track = object_tracks[i]
+    #         # track_diff = np.linalg.norm(track[1:] - track[:-1], axis = -1)
+    #         # track_diff_avg = np.mean(track_diff, axis = -1)
 
-            track_diff_avg = object_track_diff_averages[i]
+    #         track_diff_avg = object_track_diff_averages[i]
 
-            stationary_mask = np.where(track_diff_avg < DIFF_THRESH)[0]
-            stationary_mask_diff = stationary_mask[1:] - stationary_mask[:-1]
-            change_points = np.where(stationary_mask_diff > STATIONARY_THRESH)[0]
+    #         stationary_mask = np.where(track_diff_avg < DIFF_THRESH)[0]
+    #         stationary_mask_diff = stationary_mask[1:] - stationary_mask[:-1]
+    #         change_points = np.where(stationary_mask_diff > STATIONARY_THRESH)[0]
 
-            object_change_points.append(change_points)
-            object_stationary_masks.append(stationary_mask)
+    #         object_change_points.append(change_points)
+    #         object_stationary_masks.append(stationary_mask)
 
-        change_frames, change_objects = self.get_movement_order(object_change_points)
-        change_frames = np.array(change_frames)
+    #     change_frames, change_objects = self.get_movement_order(object_change_points)
+    #     change_frames = np.array(change_frames)
 
-        prev_change = 0
-        indices = []
+    #     prev_change = 0
+    #     indices = []
 
-        for i in range(len(change_frames) + 1):
+    #     for i in range(len(change_frames) + 1):
 
-            if i == len(change_frames):
-                indices.append((object_track_diff_averages[0].shape[0] + prev_change) // 2)      # After the last transition
-                break
+    #         if i == len(change_frames):
+    #             indices.append((object_track_diff_averages[0].shape[0] + prev_change) // 2)      # After the last transition
+    #             break
             
-            change_start = object_stationary_masks[change_objects[i]][change_frames[i]]     # This is the start of the "peak" from the left, for the current object
-            indices.append((change_start + prev_change) // 2)       # The midpoint of the valley is considered as the index
+    #         change_start = object_stationary_masks[change_objects[i]][change_frames[i]]     # This is the start of the "peak" from the left, for the current object
+    #         indices.append((change_start + prev_change) // 2)       # The midpoint of the valley is considered as the index
 
-            prev_change = object_stationary_masks[change_objects[i]][change_frames[i]+1]    # Reset the previous change the end of the "peak" on the right 
+    #         prev_change = object_stationary_masks[change_objects[i]][change_frames[i]+1]    # Reset the previous change the end of the "peak" on the right 
 
-        # Length of change_objects will always be one less than indices, because no more objects are moved at the last index.
-        return np.array(indices), change_objects
+    #     # Length of change_objects will always be one less than indices, because no more objects are moved at the last index.
+    #     return np.array(indices), change_objects
+
+    def get_icp_transform(self, pcd1, pcd2) -> np.ndarray:
+        """
+        pcd1 => (n, 3)
+        pcd2 => (m, 3)
+        """
+
+        pcd1_o3d = o3d.geometry.PointCloud()
+        pcd1_o3d.points = o3d.utility.Vector3dVector(pcd1)
+
+        pcd2_o3d = o3d.geometry.PointCloud()
+        pcd2_o3d.points = o3d.utility.Vector3dVector(pcd2)
+
+        icp = o3d.pipelines.registration.registration_icp(
+            pcd1_o3d, pcd2_o3d, 1.0, np.eye(4),
+            o3d.pipelines.registration.TransformationEstimationPointToPoint(),
+            o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration=200)
+        )
+
+        return icp.transformation
     
     def get_transformation_between_points(self, P, Q):
         """
@@ -275,6 +324,7 @@ class DataCollector:
         best_t = None
         best_inliers = []
         n_points = len(P)
+        sample_size = min(sample_size, int(n_points*0.6))
         
         for _ in range(max_iterations):
             # Randomly sample a subset of correspondences
@@ -357,7 +407,7 @@ class DataCollector:
 
             # plot_pcd(np.concatenate([pts3d_before, pts3d_after], axis = 0))
 
-            T = self.ransac_find_transformation(pts3d_before, pts3d_after, threshold = 0.05)
+            T = self.ransac_find_transformation(pts3d_before, pts3d_after, threshold=0.8)
             # I've done a visualization check for the transform.
             
             # transformed_pcd = self.transform_pcd(pts3d_before, T)
@@ -367,9 +417,29 @@ class DataCollector:
 
             transforms[i] = T[:]
 
+        if self.debug:
+            print("Transforms = ", transforms)
+
         return transforms
     
-    def prepare_initial_pcd(self, masks, pcd, vis_threshold = 1.):
+    def get_icp_transform_sequence(self, initial_pcd, final_pcd, initial_pcd_seg, final_pcd_seg, objects):
+        
+        transforms = np.zeros((len(objects), 4, 4))
+        for i in range(len(objects)):
+
+            initial_object_pcd = initial_pcd[initial_pcd_seg == objects[i]]
+            final_object_pcd = final_pcd[final_pcd_seg == objects[i]]
+
+            T = self.get_icp_transform(initial_object_pcd, final_object_pcd)
+            if self.debug:
+                transformed_pcd = self.transform_pcd(initial_object_pcd, T)
+                plot_pcd([initial_pcd, initial_object_pcd, final_object_pcd, transformed_pcd])
+                
+            transforms[i] = T[:]
+        return transforms
+
+    
+    def prepare_pcd(self, masks, pcd, vis_threshold = 1.):
         """
         masks => (num_objects, 720, 1280)
         """
@@ -408,6 +478,26 @@ class DataCollector:
         return pcd, pcd_seg
     
     def save_final_data(self, initial_pcd, initial_pcd_seg, transforms, objects, mode = "train"):
+        """
+        Saves point cloud data with transformations and segmentation masks.
+        This function processes and saves point cloud data by applying a series of transformations
+        to specific objects in the scene, while maintaining segmentation information.
+        Args:
+            initial_pcd (numpy.ndarray): Initial point cloud data.
+            initial_pcd_seg (numpy.ndarray): Initial segmentation masks for the point cloud.
+            transforms (list): List of transformation matrices to be applied sequentially.
+            objects (list): List of object IDs corresponding to the transforms.
+            mode (str, optional): Save mode - either "train" or "test". Defaults to "train".
+        Each saved file contains:
+            - clouds: Transformed point cloud data
+            - masks: Original segmentation masks
+            - classes: Binary classification (0 for transformed object, 1 for background)
+        Note:
+            - Skips cases where either foreground or background has less than 1024 points
+            - Files are saved with naming pattern: "{mode}/{demo_number}_teleport_obj_points.npz"
+            - Updates internal train_demos or test_demos counter based on mode
+        """
+
         
         prev_pcd = initial_pcd.copy()
         pcd_seg = initial_pcd_seg.copy()
